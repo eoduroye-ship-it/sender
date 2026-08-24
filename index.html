@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relay — Email Schedule Planner</title>
+<style>
+  :root{
+    --ink:#1c2321;
+    --paper:#f6f4ef;
+    --line:#d8d3c6;
+    --moss:#3f5d4f;
+    --moss-deep:#2b4438;
+    --amber:#c17a3a;
+    --red:#a8412f;
+    --mono: 'JetBrains Mono', 'Courier New', monospace;
+    --serif: 'Iowan Old Style', 'Georgia', serif;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:var(--paper);
+    color:var(--ink);
+    font-family: -apple-system, 'Segoe UI', sans-serif;
+    line-height:1.5;
+  }
+  .wrap{max-width:920px;margin:0 auto;padding:40px 24px 100px;}
+  header{
+    display:flex;justify-content:space-between;align-items:flex-end;
+    border-bottom:2px solid var(--ink);
+    padding-bottom:16px;margin-bottom:32px;
+  }
+  header h1{
+    font-family:var(--serif);
+    font-size:2rem;margin:0;font-weight:600;letter-spacing:-0.5px;
+  }
+  header .tag{font-family:var(--mono);font-size:.72rem;color:var(--moss);text-transform:uppercase;letter-spacing:.08em;}
+  .stamp{font-family:var(--mono);font-size:.75rem;color:#6b6558;text-align:right;}
+
+  .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;}
+  @media(max-width:760px){.grid{grid-template-columns:1fr;}}
+
+  .card{
+    background:#fff;border:1px solid var(--line);border-radius:2px;
+    padding:22px 24px;margin-bottom:22px;
+  }
+  .card h2{
+    font-family:var(--mono);font-size:.78rem;text-transform:uppercase;
+    letter-spacing:.09em;color:var(--moss-deep);margin:0 0 16px;
+    display:flex;align-items:center;gap:8px;
+  }
+  .card h2::before{content:'';width:6px;height:6px;background:var(--amber);border-radius:50%;display:inline-block;}
+
+  label{display:block;font-size:.82rem;font-weight:600;margin-bottom:6px;color:#3a362e;}
+  .hint{font-size:.76rem;color:#83796a;margin-top:4px;}
+  input[type=text],input[type=date],input[type=time],input[type=number],textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:2px;
+    font-family:inherit;font-size:.92rem;background:#fdfcfa;color:var(--ink);
+  }
+  textarea{resize:vertical;min-height:110px;}
+  input:focus,textarea:focus{outline:2px solid var(--moss);outline-offset:1px;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px;}
+  .field{margin-bottom:14px;}
+
+  button{
+    font-family:var(--mono);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em;
+    padding:11px 18px;border-radius:2px;border:1px solid var(--ink);
+    background:var(--ink);color:#fff;cursor:pointer;transition:.15s;
+  }
+  button:hover{background:var(--moss-deep);border-color:var(--moss-deep);}
+  button.ghost{background:transparent;color:var(--ink);}
+  button.ghost:hover{background:#efece3;}
+  button.danger{background:transparent;color:var(--red);border-color:var(--red);}
+  button.danger:hover{background:var(--red);color:#fff;}
+  .actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:6px;}
+
+  .pill{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:var(--mono);font-size:.72rem;padding:3px 9px;border-radius:20px;
+    border:1px solid var(--line);color:#5c574c;
+  }
+  .pill.ok{border-color:var(--moss);color:var(--moss-deep);}
+  .pill.warn{border-color:var(--amber);color:#8f5620;}
+
+  .stat-row{display:flex;gap:14px;margin-bottom:18px;}
+  .stat{flex:1;border:1px solid var(--line);padding:12px 14px;background:#fdfcfa;}
+  .stat .n{font-family:var(--serif);font-size:1.6rem;font-weight:600;}
+  .stat .l{font-family:var(--mono);font-size:.66rem;text-transform:uppercase;color:#83796a;letter-spacing:.06em;}
+
+  table{width:100%;border-collapse:collapse;font-size:.86rem;}
+  th{
+    text-align:left;font-family:var(--mono);font-size:.68rem;text-transform:uppercase;
+    letter-spacing:.06em;color:#83796a;border-bottom:1px solid var(--ink);padding:8px 6px;
+  }
+  td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top;}
+  tr:last-child td{border-bottom:none;}
+  .day-badge{
+    font-family:var(--mono);font-weight:700;background:var(--moss);color:#fff;
+    display:inline-block;padding:2px 8px;border-radius:2px;font-size:.72rem;
+  }
+  .subj{font-weight:600;}
+  .snippet{color:#6b6558;font-size:.8rem;margin-top:2px;}
+  .rowbtn{background:none;border:none;color:#83796a;cursor:pointer;font-size:.9rem;padding:2px 6px;}
+  .rowbtn:hover{color:var(--red);}
+
+  .empty{text-align:center;padding:40px 10px;color:#93897a;font-family:var(--mono);font-size:.82rem;}
+
+  .notice{
+    border-left:3px solid var(--amber);background:#fbf3e8;padding:12px 14px;
+    font-size:.82rem;margin-top:6px;color:#5c4326;
+  }
+  .notice b{color:#8f5620;}
+  code{font-family:var(--mono);background:#efece3;padding:1px 5px;border-radius:2px;font-size:.85em;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div>
+      <h1>Relay</h1>
+      <div class="tag">Alternate-day email scheduler</div>
+    </div>
+    <div class="stamp" id="clock"></div>
+  </header>
+
+  <div class="stat-row">
+    <div class="stat"><div class="n" id="statRecipients">0</div><div class="l">Recipients</div></div>
+    <div class="stat"><div class="n" id="statQueued">0</div><div class="l">Sends queued</div></div>
+    <div class="stat"><div class="n" id="statNext">—</div><div class="l">Next send date</div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <h2>Recipients</h2>
+        <div class="field">
+          <label for="recipients">Email list (comma, space, or newline separated)</label>
+          <textarea id="recipients" placeholder="student1@unilag.edu.ng, staff2@unilag.edu.ng ..."></textarea>
+          <div class="hint" id="recipientCount">0 valid addresses detected</div>
+        </div>
+        <div class="notice">
+          <b>Consent matters most for deliverability.</b> Only send to people who opted in — a registration form, a
+          newsletter sign-up, past patients who agreed to updates. Bought or scraped lists are the single biggest
+          reason bulk mail gets flagged, no matter what tooling sends it.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Message</h2>
+        <div class="field">
+          <label for="subject">Subject line</label>
+          <input type="text" id="subject" placeholder="e.g. Cityview Clinic — Free health screening this week">
+        </div>
+        <div class="field">
+          <label for="body">Body</label>
+          <textarea id="body" style="min-height:160px" placeholder="Write the message. Use {{name}} to personalize per recipient if your sending list has names."></textarea>
+          <div class="hint">Every send in the queue will automatically get a footer with a real postal/campus address and an unsubscribe link — required by law (CAN-SPAM / NDPR) and expected by spam filters.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Schedule</h2>
+        <div class="row">
+          <div class="field">
+            <label for="startDate">First send date</label>
+            <input type="date" id="startDate">
+          </div>
+          <div class="field">
+            <label for="sendTime">Send time</label>
+            <input type="time" id="sendTime" value="09:00">
+          </div>
+        </div>
+        <div class="row">
+          <div class="field">
+            <label for="interval">Repeat every (days)</label>
+            <input type="number" id="interval" min="1" value="2">
+          </div>
+          <div class="field">
+            <label for="occurrences">Number of sends</label>
+            <input type="number" id="occurrences" min="1" value="6">
+          </div>
+        </div>
+        <div class="field">
+          <label for="batchSize">Max recipients per send (throttling)</label>
+          <input type="number" id="batchSize" min="1" value="200">
+          <div class="hint">Sending everyone at once looks like a blast. Splitting into batches — and letting sends land on alternate days rather than all at once — keeps volume looking organic to spam filters.</div>
+        </div>
+        <div class="actions">
+          <button id="addToQueue">Add to queue</button>
+          <button class="ghost" id="exportCsv">Export queue as CSV</button>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <h2>Queue</h2>
+        <table id="queueTable">
+          <thead>
+            <tr><th>Send #</th><th>Date</th><th>Subject</th><th></th></tr>
+          </thead>
+          <tbody id="queueBody"></tbody>
+        </table>
+        <div class="empty" id="queueEmpty">No sends scheduled yet.</div>
+      </div>
+
+      <div class="card">
+        <h2>Deliverability checklist</h2>
+        <table>
+          <tbody id="checklist"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h2>Connect a sender</h2>
+        <div class="hint" style="margin-bottom:10px;">
+          This page plans <i>what</i> gets sent and <i>when</i>. Browsers can't send real email directly (no SMTP
+          access, and API keys shouldn't live in client-side code). Export the queue above, then run it through a
+          small backend using a real transactional email provider — see <code>backend-server.js</code> and
+          <code>README.md</code> alongside this file for a ready-to-deploy example (SendGrid/Brevo + node-cron, one
+          send per scheduled day, respecting the batch size and interval you set here).
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+let queue = [];
+
+function tick(){
+  $('clock').textContent = new Date().toLocaleString('en-GB', { weekday:'short', year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+}
+tick(); setInterval(tick, 30000);
+
+function parseRecipients(raw){
+  const emailRe = /[^\s,;]+@[^\s,;]+\.[^\s,;]+/g;
+  const found = raw.match(emailRe) || [];
+  return [...new Set(found.map(e => e.trim().toLowerCase()))];
+}
+
+$('recipients').addEventListener('input', () => {
+  const list = parseRecipients($('recipients').value);
+  $('recipientCount').textContent = `${list.length} valid address${list.length===1?'':'es'} detected`;
+  $('statRecipients').textContent = list.length;
+});
+
+if(!$('startDate').value){
+  const d = new Date(); d.setDate(d.getDate()+1);
+  $('startDate').value = d.toISOString().slice(0,10);
+}
+
+function fmtDate(d){
+  return d.toLocaleDateString('en-GB', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+}
+
+function renderQueue(){
+  const body = $('queueBody');
+  body.innerHTML = '';
+  $('queueEmpty').style.display = queue.length ? 'none' : 'block';
+  queue.forEach((item, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><span class="day-badge">#${i+1}</span></td>
+      <td>${fmtDate(new Date(item.date))}<br><span class="snippet">${item.time} · ${item.recipients} recipients</span></td>
+      <td><div class="subj">${item.subject || '(no subject)'}</div><div class="snippet">${(item.body||'').slice(0,60)}${item.body && item.body.length>60?'…':''}</div></td>
+      <td><button class="rowbtn" onclick="removeItem(${i})" title="Remove">✕</button></td>
+    `;
+    body.appendChild(tr);
+  });
+  $('statQueued').textContent = queue.length;
+  $('statNext').textContent = queue.length ? fmtDate(new Date(queue[0].date)) : '—';
+  renderChecklist();
+}
+
+function removeItem(i){ queue.splice(i,1); renderQueue(); }
+
+function renderChecklist(){
+  const recipients = parseRecipients($('recipients').value);
+  const subject = $('subject').value.trim();
+  const body = $('body').value.trim();
+  const batch = parseInt($('batchSize').value || '0', 10);
+  const interval = parseInt($('interval').value || '0', 10);
+
+  const checks = [
+    [recipients.length > 0, 'Recipient list has valid, deduplicated addresses'],
+    [subject.length > 0 && subject.length < 78, 'Subject line is present and under ~78 characters'],
+    [body.length > 20, 'Message body has real content'],
+    [!/free money|click here now|!!!|100% free/i.test(subject+' '+body), 'Subject/body avoids classic spam-trigger phrasing'],
+    [batch > 0 && batch <= 500, 'Batch size is throttled (≤500 per send is a reasonable start for a new sender)'],
+    [interval >= 1, 'Sends are spaced out rather than blasted at once'],
+    [true, 'Unsubscribe link + physical/campus address in footer (added automatically on send)'],
+    [true, 'Sending domain has SPF, DKIM, and DMARC configured (set up once on your email provider)'],
+  ];
+  const el = $('checklist');
+  el.innerHTML = checks.map(([ok,label]) => `
+    <tr><td style="width:30px">${ok ? '<span class="pill ok">✓</span>' : '<span class="pill warn">•</span>'}</td><td>${label}</td></tr>
+  `).join('');
+}
+
+['subject','body','batchSize','interval'].forEach(id => $(id).addEventListener('input', renderChecklist));
+renderChecklist();
+
+$('addToQueue').addEventListener('click', () => {
+  const recipients = parseRecipients($('recipients').value);
+  const subject = $('subject').value.trim();
+  const body = $('body').value.trim();
+  const start = $('startDate').value;
+  const time = $('sendTime').value || '09:00';
+  const interval = Math.max(1, parseInt($('interval').value || '2', 10));
+  const occurrences = Math.max(1, parseInt($('occurrences').value || '1', 10));
+  const batch = Math.max(1, parseInt($('batchSize').value || '200', 10));
+
+  if(!recipients.length){ alert('Add at least one recipient.'); return; }
+  if(!subject || !body){ alert('Add a subject and message body.'); return; }
+  if(!start){ alert('Pick a first send date.'); return; }
+
+  const batches = Math.ceil(recipients.length / batch);
+  const totalSends = Math.min(occurrences, batches) || occurrences;
+
+  for(let i=0; i<occurrences; i++){
+    const d = new Date(start + 'T' + time);
+    d.setDate(d.getDate() + i*interval);
+    const slice = recipients.slice((i % batches)*batch, (i % batches)*batch + batch);
+    queue.push({
+      date: d.toISOString(),
+      time,
+      subject,
+      body,
+      recipients: slice.length || recipients.length,
+    });
+  }
+  queue.sort((a,b) => new Date(a.date) - new Date(b.date));
+  renderQueue();
+});
+
+$('exportCsv').addEventListener('click', () => {
+  if(!queue.length){ alert('Queue is empty.'); return; }
+  const rows = [['send_index','date_iso','time','recipient_count','subject','body']];
+  queue.forEach((q,i) => rows.push([i+1, q.date, q.time, q.recipients, JSON.stringify(q.subject), JSON.stringify(q.body)]));
+  const csv = rows.map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'email-schedule.csv';
+  a.click();
+});
+
+renderQueue();
+</script>
+</body>
+</html>
